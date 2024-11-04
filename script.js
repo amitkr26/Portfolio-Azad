@@ -1,47 +1,45 @@
-const canvas = document.querySelector("#c");
-const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-
-const scoreElement = document.getElementById("score");
-const highScoreElement = document.getElementById("high-score");
-const gameOverElement = document.getElementById("game-over");
-const levelUpElement = document.getElementById("level-up");
-const portfolio = document.getElementById("portfolio");
-const sectionsNav = document.getElementById("sections-nav");
-const retryButton = document.getElementById("retry-button");
-const pauseButton = document.getElementById("pause-button");
-const skipLevelButton = document.getElementById("skip-level-button");
-const aboutButton = document.getElementById("about-btn");
-const skillsButton = document.getElementById("skills-btn");
-const educationButton = document.getElementById("education-btn");
-const experienceButton = document.getElementById("experience-btn");
-const contactButton = document.getElementById("contact-btn");
-const gameContainer = document.getElementById("game-container");
-
+// Game variables
+let canvas, ctx;
+let objects = [];
 let score = 0;
 let highScore = 0;
 let level = 1;
-let objects = [];
-let objectSpeed = 2;
-let gameInterval;
-let objectSpawnInterval;
-let specialObjectSpawnInterval;
+let isGameOver = false;
 let isPaused = false;
+let gameSpeed = 1;
+
+// UI Elements
+const scoreElement = document.getElementById("score");
+const highScoreElement = document.getElementById("high-score");
+const gameOverElement = document.getElementById("game-over");
+const pauseButton = document.getElementById("pause-button");
+const retryButton = document.getElementById("retry-button");
+const skipLevelButton = document.getElementById("skip-level-button");
+const aboutButton = document.getElementById("about-button");
+const skillsButton = document.getElementById("skills-button");
+const educationButton = document.getElementById("education-button");
+const experienceButton = document.getElementById("experience-button");
+const contactButton = document.getElementById("contact-button");
+
+// Colors
+const colors = ["#67d7f0", "#a6e02c", "#fa2473", "#fe9522", "#ffcc00"];
 
 // Object class
 class GameObject {
-    constructor(x, y, radius, color) {
-        this.x = x;
-        this.y = y;
-        this.radius = radius;
-        this.color = color;
-        this.isSpecial = false;
+    constructor() {
+        this.x = Math.random() * canvas.width;
+        this.y = canvas.height + 50; // Start below canvas
+        this.radius = 30 + Math.random() * 20;
+        this.color = colors[Math.floor(Math.random() * colors.length)];
+        this.speed = Math.random() * 2 + 2; // Random speed
+        this.isSpecial = Math.random() < 0.2; // 20% chance to be special
     }
 
     update() {
-        this.y += objectSpeed;
-        this.draw();
+        this.y -= this.speed * gameSpeed; // Move up
+        if (this.y < -this.radius) {
+            isGameOver = true; // Game over if object goes off-screen
+        }
     }
 
     draw() {
@@ -52,130 +50,75 @@ class GameObject {
     }
 
     hit() {
-        // Create particles
-        for (let i = 0; i < 10; i++) {
-            createSlicingEffect(this);
-        }
-        score += 10;
-        scoreElement.innerText = score;
-        objects.splice(objects.indexOf(this), 1); // Remove object from array
-        if (this.isSpecial) {
-            slowDownGame(10); // Slow down the game for 10 seconds
-        }
+        score += this.isSpecial ? 15 : 10; // Increase score differently for special objects
         if (score % 50 === 0) {
             levelUp();
         }
     }
 }
 
-// Function to create slicing effect
-function createSlicingEffect(object) {
-    const particleCount = 10;
-    for (let i = 0; i < particleCount; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const velocityX = Math.cos(angle) * 2;
-        const velocityY = Math.sin(angle) * 2;
-        drawParticle(object.x, object.y, velocityX, velocityY);
-    }
-}
-
-// Function to draw particles
-function drawParticle(x, y, vx, vy) {
-    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-    ctx.beginPath();
-    ctx.arc(x, y, 5, 0, Math.PI * 2);
-    ctx.fill();
-}
-
-// Start the game
+// Initialize game
 function startGame() {
-    gameContainer.classList.remove("hidden");
-    portfolio.classList.add("hidden");
+    canvas = document.getElementById("c");
+    ctx = canvas.getContext("2d");
     score = 0;
     level = 1;
     objects = [];
+    isGameOver = false;
+    isPaused = false;
     scoreElement.innerText = score;
     highScoreElement.innerText = highScore;
-    gameInterval = setInterval(updateGame, 1000 / 60); // 60 FPS
-    objectSpawnInterval = setInterval(spawnObjects, 1000);
-    specialObjectSpawnInterval = setInterval(spawnSpecialObjects, 5000);
+    gameOverElement.classList.add("hidden");
+    requestAnimationFrame(gameLoop);
+    spawnObject();
 }
 
-// Update game frame
-function updateGame() {
-    if (!isPaused) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        objects.forEach(object => {
-            object.update();
-            if (object.y > canvas.height) {
-                gameOver();
-            }
-        });
+// Game loop
+function gameLoop() {
+    if (isPaused) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Update and draw objects
+    objects.forEach((object, index) => {
+        object.update();
+        object.draw();
+        if (object.y < -object.radius) {
+            objects.splice(index, 1); // Remove if off-screen
+        }
+    });
+
+    // Check game over
+    if (isGameOver) {
+        showGameOver();
+        return;
     }
+
+    // Draw score and high score
+    scoreElement.innerText = score;
+    if (score > highScore) {
+        highScore = score;
+        highScoreElement.innerText = highScore;
+    }
+
+    requestAnimationFrame(gameLoop);
 }
 
-// Spawn normal objects
-function spawnObjects() {
-    const x = Math.random() * canvas.width;
-    const radius = 30;
-    const color = getRandomColor();
-    const newObject = new GameObject(x, -radius, radius, color);
-    objects.push(newObject);
-}
-
-// Spawn special objects
-function spawnSpecialObjects() {
-    const x = Math.random() * canvas.width;
-    const radius = 30;
-    const specialColor = "rgba(255, 215, 0, 0.8)";
-    const newObject = new GameObject(x, -radius, radius, specialColor);
-    newObject.isSpecial = true;
-    objects.push(newObject);
-}
-
-// Get random color
-function getRandomColor() {
-    const colors = ["#67d7f0", "#a6e02c", "#fa2473", "#fe9522"];
-    return colors[Math.floor(Math.random() * colors.length)];
-}
-
-// Slow down the game
-function slowDownGame(seconds) {
-    objectSpeed = 1;
-    setTimeout(() => {
-        objectSpeed = 2;
-    }, seconds * 1000);
+// Spawn objects
+function spawnObject() {
+    if (isGameOver) return;
+    const object = new GameObject();
+    objects.push(object);
+    setTimeout(spawnObject, 1000 / (level + 1)); // Faster with each level
 }
 
 // Level up
 function levelUp() {
     level++;
-    if (level > 6) {
-        level = 6; // Max level
-    }
-    if (level === 2) sectionsNav.classList.remove("hidden");
-    if (level <= 6) {
-        levelUpElement.classList.remove("hidden");
-        setTimeout(() => {
-            levelUpElement.classList.add("hidden");
-        }, 2000);
-    }
+    gameSpeed += 0.1; // Increase game speed
+    if (level > 6) level = 6; // Limit to 6 levels
 }
 
-// Game over function
-function gameOver() {
-    clearInterval(gameInterval);
-    clearInterval(objectSpawnInterval);
-    clearInterval(specialObjectSpawnInterval);
-    gameOverElement.classList.remove("hidden");
-    if (score > highScore) {
-        high
-highScore = score;
-        highScoreElement.innerText = highScore;
-    }
-}
-
-// Mouse and touch interaction for slicing
+// Handle mouse and touch events for slicing
 canvas.addEventListener('mousedown', (event) => {
     if (!isPaused) {
         sliceObject(event.clientX, event.clientY);
@@ -189,14 +132,21 @@ canvas.addEventListener('touchstart', (event) => {
     }
 });
 
-// Function to slice the object
+// Slice object function
 function sliceObject(x, y) {
-    objects.forEach(object => {
+    objects.forEach((object, index) => {
         const distance = Math.hypot(object.x - x, object.y - y);
-        if (distance < object.radius + 10) { // Checking if hit
+        if (distance < object.radius + 10) { // Hit detected
             object.hit();
+            objects.splice(index, 1); // Remove sliced object
         }
     });
+}
+
+// Show game over screen
+function showGameOver() {
+    gameOverElement.classList.remove("hidden");
+    gameOverElement.innerText = "Game Over! Your score: " + score;
 }
 
 // Pause the game
@@ -220,40 +170,27 @@ skipLevelButton.addEventListener('click', () => {
     levelUp();
 });
 
-// Restart the game
-document.getElementById("restart-button").addEventListener('click', () => {
-    resetGame();
-});
-
 // Reset game state
 function resetGame() {
-    gameOverElement.classList.add("hidden");
     score = 0;
     level = 1;
     objects = [];
+    isGameOver = false;
+    isPaused = false;
     scoreElement.innerText = score;
     highScoreElement.innerText = highScore;
+    gameOverElement.classList.add("hidden");
     startGame();
 }
 
-// Show portfolio sections based on level
-aboutButton.addEventListener('click', () => {
-    showSection('about');
-});
-skillsButton.addEventListener('click', () => {
-    showSection('skills');
-});
-educationButton.addEventListener('click', () => {
-    showSection('education');
-});
-experienceButton.addEventListener('click', () => {
-    showSection('experience');
-});
-contactButton.addEventListener('click', () => {
-    showSection('contact');
-});
+// Show specific section based on button clicked
+aboutButton.addEventListener('click', () => showSection('about'));
+skillsButton.addEventListener('click', () => showSection('skills'));
+educationButton.addEventListener('click', () => showSection('education'));
+experienceButton.addEventListener('click', () => showSection('experience'));
+contactButton.addEventListener('click', () => showSection('contact'));
 
-// Show specific section
+// Function to show a specific section
 function showSection(section) {
     document.querySelectorAll('.section').forEach((sec) => {
         sec.classList.add('hidden');
