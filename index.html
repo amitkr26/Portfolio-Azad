@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gamified Portfolio</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="c"></canvas>
+        <div id="score-board">
+            <h1>Score: <span id="score">0</span></h1>
+            <h2>High Score: <span id="high-score">0</span></h2>
+            <button id="pause-button">Pause</button>
+            <button id="retry-button">Retry</button>
+            <button id="skip-level-button">Skip Level</button>
+        </div>
+        <div id="game-over" class="hidden">
+            <h2>Game Over</h2>
+            <button id="restart-button">Try Again</button>
+        </div>
+        <div id="level-up" class="hidden">
+            <h2>Level Up!</h2>
+        </div>
+    </div>
+
+    <div id="portfolio" class="hidden">
+        <h1>Amit Kumar's Portfolio</h1>
+        <nav id="sections-nav" class="hidden">
+            <button id="about-btn">About</button>
+            <button id="skills-btn">Skills</button>
+            <button id="education-btn">Education</button>
+            <button id="experience-btn">Experience</button>
+            <button id="contact-btn">Contact</button>
+        </nav>
+        <div id="content">
+            <div id="about" class="section hidden">About Section Content</div>
+            <div id="skills" class="section hidden">Skills Section Content</div>
+            <div id="education" class="section hidden">Education Section Content</div>
+            <div id="experience" class="section hidden">Experience Section Content</div>
+            <div id="contact" class="section hidden">Contact Section Content</div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
