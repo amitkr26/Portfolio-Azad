@@ -1,11 +1,11 @@
 // Game setup variables
 let score = 0;
 let highScore = localStorage.getItem('highScore') || 0;
-let level = 0;
+let level = 1;
 let objectsSliced = 0;
 let gameSpeed = 1;
-let gameInterval;
 let isPaused = false;
+let specialActive = false;
 
 // Game canvas and context
 const canvas = document.getElementById("c");
@@ -13,12 +13,12 @@ const ctx = canvas.getContext("2d");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-// Initialize game objects
+// Game objects array and colors
 const objects = [];
 const colors = ['#67d7f0', '#a6e02c', '#fa2473', '#fe9522'];
 const specialColors = ['#ffcc00', '#ff33cc'];
 
-// Object constructor
+// GameObject constructor
 class GameObject {
     constructor(x, y, radius, isSpecial) {
         this.x = x;
@@ -37,42 +37,38 @@ class GameObject {
     }
 }
 
-// Start game
+// Start game function
 function startGame() {
     score = 0;
     objectsSliced = 0;
-    level = 0;
+    level = 1;
+    gameSpeed = 1;
     objects.length = 0;
+    specialActive = false;
+    isPaused = false;
     document.getElementById("game-over").classList.add("hidden");
-    document.getElementById("retry-button").classList.add("hidden");
-    document.getElementById("portfolio-header").classList.add("hidden");
-    resetCanvas();
+    document.getElementById("new-high-score").classList.add("hidden");
+    resetPortfolio();
+    updateScore();
     gameLoop();
 }
 
 // Game loop
 function gameLoop() {
     if (isPaused) return;
-
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     spawnObjects();
     drawObjects();
 
-    // Check for game over
-    if (objects.length === 0 && objectsSliced >= 5) {
+    // Increase difficulty and unlock portfolio sections as levels advance
+    if (objectsSliced >= 5) {
         level++;
+        gameSpeed += 0.5;
         objectsSliced = 0;
-        if (level < 6) {
-            unlockSection();
-        } else {
-            gameWin(); // Trigger game win if all levels are completed
-        }
+        unlockPortfolioSection();
     }
 
-    // Update score and difficulty
     updateScore();
-    gameSpeed += 0.01; // Increase speed with time
-
     requestAnimationFrame(gameLoop);
 }
 
@@ -82,107 +78,82 @@ function spawnObjects() {
         const radius = Math.random() * 20 + 20;
         const x = Math.random() * canvas.width;
         const y = canvas.height + radius;
-        const isSpecial = Math.random() < 0.1; // 10% chance of being a special object
+        const isSpecial = Math.random() < 0.1;
         const object = new GameObject(x, y, radius, isSpecial);
         objects.push(object);
     }
 }
 
-// Draw objects
+// Draw objects and check for missed objects
 function drawObjects() {
-    for (let i = 0; i < objects.length; i++) {
-        const obj = objects[i];
-        obj.y -= gameSpeed; // Move object upwards
+    objects.forEach((obj, index) => {
+        obj.y -= gameSpeed;
         obj.draw();
-
-        // Remove objects that have gone off-screen
         if (obj.y + obj.radius < 0) {
-            objects.splice(i, 1);
-            i--; // Adjust index after removal
-            gameOver(); // Game over if an object is missed
+            objects.splice(index, 1);
+            gameOver();
         }
-    }
+    });
 }
 
-// Unlock portfolio section
-function unlockSection() {
-    document.getElementById("portfolio-header").classList.remove("hidden");
-    document.getElementById("portfolio-header").querySelectorAll("button")[level - 1].disabled = false;
-}
+// Mouse and touch event listeners for slicing objects
+canvas.addEventListener('mousedown', (e) => sliceObject(e.clientX, e.clientY));
+canvas.addEventListener('touchstart', (e) => sliceObject(e.touches[0].clientX, e.touches[0].clientY));
 
-// Game win function
-function gameWin() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillText("Congratulations! You've completed all levels!", canvas.width / 2, canvas.height / 2);
-}
-
-// Update score
-function updateScore() {
-    document.getElementById("score").innerText = score;
-    if (score > highScore) {
-        highScore = score;
-        localStorage.setItem('highScore', highScore);
-        document.getElementById("high-score").innerText = highScore;
-    }
-}
-
-// Handle slicing of objects
-canvas.addEventListener('mousedown', (event) => {
-    const rect = canvas.getBoundingClientRect();
-    const mouseX = event.clientX - rect.left;
-    const mouseY = event.clientY - rect.top;
-    sliceObject(mouseX, mouseY);
-});
-
-canvas.addEventListener('touchstart', (event) => {
-    const rect = canvas.getBoundingClientRect();
-    const touchX = event.touches[0].clientX - rect.left;
-    const touchY = event.touches[0].clientY - rect.top;
-    sliceObject(touchX, touchY);
-});
-
-// Slicing function
 function sliceObject(x, y) {
-    for (let i = 0; i < objects.length; i++) {
-        const obj = objects[i];
-        const distance = Math.sqrt((x - obj.x) ** 2 + (y - obj.y) ** 2);
-        if (distance < obj.radius) {
+    objects.forEach((obj, index) => {
+        if (Math.hypot(obj.x - x, obj.y - y) < obj.radius) {
             score += 10;
             objectsSliced++;
-            objects.splice(i, 1);
-            if (obj.isSpecial) {
-                // Slow down game for 10 seconds if special object is sliced
-                slowDownGame();
-            }
-            return;
+            if (obj.isSpecial && !specialActive) activateSpecial();
+            objects.splice(index, 1);
         }
-    }
+    });
 }
 
-// Slow down game for special object
-function slowDownGame() {
-    const originalSpeed = gameSpeed;
-    gameSpeed *= 0.5; // Slow down
+// Activate slow-motion effect for special object
+function activateSpecial() {
+    specialActive = true;
+    gameSpeed *= 0.5;
     setTimeout(() => {
-        gameSpeed = originalSpeed; // Restore original speed after 10 seconds
+        gameSpeed *= 2;
+        specialActive = false;
     }, 10000);
 }
 
-// Handle game over
+// Unlock portfolio sections as levels progress
+function unlockPortfolioSection() {
+    document.getElementById("portfolio-header").classList.remove("hidden");
+    const sectionButtons = document.querySelectorAll("#portfolio-header button");
+    if (level - 1 < sectionButtons.length) sectionButtons[level - 1].disabled = false;
+}
+
+// Game over function
 function gameOver() {
     isPaused = true;
     document.getElementById("game-over").classList.remove("hidden");
     document.getElementById("retry-button").classList.remove("hidden");
 }
 
-// Retry button
+// Update score and save high score
+function updateScore() {
+    document.getElementById("score").innerText = score;
+    if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('highScore', highScore);
+        document.getElementById("new-high-score").classList.remove("hidden");
+    }
+}
+
+// Pause and retry buttons
+document.getElementById("pause-button").addEventListener('click', () => isPaused = !isPaused);
 document.getElementById("retry-button").addEventListener('click', startGame);
 
-// Pause button
-document.getElementById("pause-button").addEventListener('click', () => {
-    isPaused = !isPaused;
-    document.getElementById("pause-button").innerText = isPaused ? "Resume" : "Pause";
-});
+// Reset portfolio sections visibility
+function resetPortfolio() {
+    document.getElementById("portfolio-header").classList.add("hidden");
+    document.querySelectorAll("#portfolio-header button").forEach(button => button.disabled = true);
+}
 
-// Initialize game
+// Start the game
 startGame();
